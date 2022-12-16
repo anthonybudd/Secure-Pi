@@ -1,0 +1,133 @@
+##########################################
+# Wireless connectivity
+##########################################
+read -p "Disable Wifi? [y]" WIFI
+WIFI=${WIFI:-y}
+if [ "$WIFI" = "y" ] || [ "$WIFI" = "yes" ]; then
+    sed -i '/\/boot\/overlays\/README/a \dtoverlay=disable-wifi' /boot/config.txt
+    echo "[!] Wifi Disabled"
+fi
+
+read -p "Disable Bluetooth? [y]" BT
+BT=${BT:-y}
+if [ "$BT" = "y" ] || [ "$BT" = "yes" ]; then
+    sed -i '/\/boot\/overlays\/README/a \dtoverlay=disable-bt' /boot/config.txt
+    echo "[!] Bluetooth Disabled"
+fi
+
+
+##########################################
+# UFW
+##########################################
+read -p "Install UFW? [y]" UFW
+UFW=${UFW:-y}
+if [ "$UFW" = "y" ] || [ "$UFW" = "yes" ]; then
+    apt install -y ufw
+    ufw default deny outgoing comment 'deny all outgoing traffic'
+    ufw default deny incoming comment 'deny all incoming traffic'
+    
+    # Kubernetes Node
+    read -p "Allow K8s node ports [y]" node
+    node=${node:-y}
+    if [ "$node" = "y" ] || [ "$node" = "yes" ]; then
+        ufw allow 10250/tcp
+        ufw allow 30000:32767/tcp
+    fi
+
+    # Kubernetes Control Plane
+    read -p "Allow K8s Control Plane ports [y]" ControlPlane
+    ControlPlane=${ControlPlane:-y}
+    if [ "$ControlPlane" = "y" ] || [ "$ControlPlane" = "yes" ]; then
+        ufw allow 6443/tcp
+        ufw allow 2379:2380/tcp
+        ufw allow 10250/tcp
+        ufw allow 10259/tcp
+        ufw allow 10257/tcp
+    fi
+
+    # allow SSH
+    ufw limit in ssh comment 'allow SSH connections in'
+
+    # allow traffic out on port 53 -- DNS
+    ufw allow out 53 comment 'allow DNS calls out'
+
+    # allow traffic out on port 123 -- NTP
+    ufw allow out 123 comment 'allow NTP out'
+
+    # allow traffic out for HTTP, HTTPS, or FTP
+    # apt might needs these depending on which sources you're using
+    ufw allow out http comment 'allow HTTP traffic out'
+    ufw allow out https comment 'allow HTTPS traffic out'
+
+    # allow whois
+    ufw allow out whois comment 'allow whois'
+
+    # allow traffic out on port 68 -- the DHCP client
+    # you only need this if you're using DHCP
+    ufw allow out 67 comment 'allow the DHCP client to update'
+    ufw allow out 68 comment 'allow the DHCP client to update'
+
+    ufw enable
+    echo "[!] UFW installed"
+fi
+
+
+##########################################
+# Fail2Ban
+##########################################
+read -p "Install Fail2Ban? [y]" FTB
+FTB=${FTB:-y}
+if [ "$FTB" = "y" ] || [ "$FTB" = "yes" ]; then
+    apt install -y fail2ban
+    echo "[!] Fail2Ban installed"
+
+    cat << EOF | sudo tee /etc/fail2ban/jail.d/ssh.local
+[sshd]
+enabled = true
+banaction = ufw
+port = ssh
+filter = sshd
+logpath = %(sshd_log)s
+maxretry = 5
+EOF
+
+    fail2ban-client start
+    fail2ban-client reload
+    fail2ban-client add sshd
+fi
+
+
+##########################################
+# Configure SSH
+##########################################
+read -p "Configure SSH? [y]" SSH
+SSH=${SSH:-y}
+if [ "$SSH" = "y" ] || [ "$SSH" = "yes" ]; then
+    sed -i 's/.*PasswordAuthentication yes.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+    sed -i 's/.*ChallengeResponseAuthentication yes.*/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config
+    sed -i 's/.*UsePAM yes.*/UsePAM no/' /etc/ssh/sshd_config
+    sed -i 's/.*PermitRootLogin prohibit-password.*/PermitRootLogin no/' /etc/ssh/sshd_config
+    sed -i 's/.*MaxAuthTries.*/MaxAuthTries 2/' /etc/ssh/sshd_config
+    sed -i 's/.*MaxSessions.*/MaxSessions 2/' /etc/ssh/sshd_config
+    sed -i 's/.*MaxStartups.*/MaxStartups 2/' /etc/ssh/sshd_config
+
+    # https://github.com/imthenachoman/How-To-Secure-A-Linux-Server#secure-etcsshsshd_config
+    # Make sure there are no duplicate settings that contradict each osudther. The below command should not have any output.
+    # echo "SSH config duplicates:"
+    # awk 'NF && $1!~/^(#|HostKey)/{print $1}' /etc/ssh/sshd_config | sort | uniq -c | grep -v ' 1 '
+    # echo "\n"
+
+    /etc/init.d/ssh reload
+    echo "[!] SSH configurerd"
+fi
+
+
+##########################################
+# Limit Logins
+##########################################
+read -p "Limit Logins? [y]" LimitLogins
+LimitLogins=${LimitLogins:-y}
+if [ "$LimitLogins" = "y" ] || [ "$LimitLogins" = "yes" ]; then
+    echo "${USER}        -       maxlogins       2" >> /etc/security/limits.conf
+    echo "[!] ${USER} maxlogins = 2"
+fi
