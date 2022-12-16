@@ -28,6 +28,12 @@ PermitRootLogin prohibit-password
 /etc/init.d/ssh reload
 ```
 
+### Disable Wifi and Bluetooth
+```
+sudo nano /boot/config.txt
+dtoverlay=disable-wifi
+dtoverlay=disable-bt
+```
 
 ### Useful Comands
 ```
