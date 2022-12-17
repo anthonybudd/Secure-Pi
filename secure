@@ -23,49 +23,54 @@ read -p "Install UFW? [y]" UFW
 UFW=${UFW:-y}
 if [ "$UFW" = "y" ] || [ "$UFW" = "yes" ]; then
     apt install -y ufw
-    ufw default deny outgoing comment 'deny all outgoing traffic'
-    ufw default deny incoming comment 'deny all incoming traffic'
-    
-    # Kubernetes Node
-    read -p "Allow K8s node ports [y]" node
-    node=${node:-y}
-    if [ "$node" = "y" ] || [ "$node" = "yes" ]; then
-        ufw allow 10250/tcp
-        ufw allow 30000:32767/tcp
+
+    read -p "Set Ports? [y]" SetPorts
+    SetPorts=${SetPorts:-y}
+    if [ "$SetPorts" = "y" ] || [ "$SetPorts" = "yes" ]; then
+        ufw default deny outgoing comment 'deny all outgoing traffic'
+        ufw default deny incoming comment 'deny all incoming traffic'
+        
+        # Kubernetes Node
+        read -p "Allow K8s node ports [y]" node
+        node=${node:-y}
+        if [ "$node" = "y" ] || [ "$node" = "yes" ]; then
+            ufw allow 10250/tcp
+            ufw allow 30000:32767/tcp
+        fi
+
+        # Kubernetes Control Plane
+        read -p "Allow K8s Control Plane ports [y]" ControlPlane
+        ControlPlane=${ControlPlane:-y}
+        if [ "$ControlPlane" = "y" ] || [ "$ControlPlane" = "yes" ]; then
+            ufw allow 6443/tcp
+            ufw allow 2379:2380/tcp
+            ufw allow 10250/tcp
+            ufw allow 10259/tcp
+            ufw allow 10257/tcp
+        fi
+
+        # allow SSH
+        ufw limit in ssh comment 'allow SSH connections in'
+
+        # allow traffic out on port 53 -- DNS
+        ufw allow out 53 comment 'allow DNS calls out'
+
+        # allow traffic out on port 123 -- NTP
+        ufw allow out 123 comment 'allow NTP out'
+
+        # allow traffic out for HTTP, HTTPS, or FTP
+        # apt might needs these depending on which sources you're using
+        ufw allow out http comment 'allow HTTP traffic out'
+        ufw allow out https comment 'allow HTTPS traffic out'
+
+        # allow whois
+        ufw allow out whois comment 'allow whois'
+
+        # allow traffic out on port 68 -- the DHCP client
+        # you only need this if you're using DHCP
+        ufw allow out 67 comment 'allow the DHCP client to update'
+        ufw allow out 68 comment 'allow the DHCP client to update'
     fi
-
-    # Kubernetes Control Plane
-    read -p "Allow K8s Control Plane ports [y]" ControlPlane
-    ControlPlane=${ControlPlane:-y}
-    if [ "$ControlPlane" = "y" ] || [ "$ControlPlane" = "yes" ]; then
-        ufw allow 6443/tcp
-        ufw allow 2379:2380/tcp
-        ufw allow 10250/tcp
-        ufw allow 10259/tcp
-        ufw allow 10257/tcp
-    fi
-
-    # allow SSH
-    ufw limit in ssh comment 'allow SSH connections in'
-
-    # allow traffic out on port 53 -- DNS
-    ufw allow out 53 comment 'allow DNS calls out'
-
-    # allow traffic out on port 123 -- NTP
-    ufw allow out 123 comment 'allow NTP out'
-
-    # allow traffic out for HTTP, HTTPS, or FTP
-    # apt might needs these depending on which sources you're using
-    ufw allow out http comment 'allow HTTP traffic out'
-    ufw allow out https comment 'allow HTTPS traffic out'
-
-    # allow whois
-    ufw allow out whois comment 'allow whois'
-
-    # allow traffic out on port 68 -- the DHCP client
-    # you only need this if you're using DHCP
-    ufw allow out 67 comment 'allow the DHCP client to update'
-    ufw allow out 68 comment 'allow the DHCP client to update'
 
     ufw enable
     echo "[!] UFW installed"
@@ -108,8 +113,6 @@ if [ "$SSH" = "y" ] || [ "$SSH" = "yes" ]; then
     sed -i 's/.*UsePAM yes.*/UsePAM no/' /etc/ssh/sshd_config
     sed -i 's/.*PermitRootLogin prohibit-password.*/PermitRootLogin no/' /etc/ssh/sshd_config
     sed -i 's/.*MaxAuthTries.*/MaxAuthTries 2/' /etc/ssh/sshd_config
-    sed -i 's/.*MaxSessions.*/MaxSessions 2/' /etc/ssh/sshd_config
-    sed -i 's/.*MaxStartups.*/MaxStartups 2/' /etc/ssh/sshd_config
 
     # https://github.com/imthenachoman/How-To-Secure-A-Linux-Server#secure-etcsshsshd_config
     # Make sure there are no duplicate settings that contradict each osudther. The below command should not have any output.
@@ -119,15 +122,4 @@ if [ "$SSH" = "y" ] || [ "$SSH" = "yes" ]; then
 
     /etc/init.d/ssh reload
     echo "[!] SSH configurerd"
-fi
-
-
-##########################################
-# Limit Logins
-##########################################
-read -p "Limit Logins? [y]" LimitLogins
-LimitLogins=${LimitLogins:-y}
-if [ "$LimitLogins" = "y" ] || [ "$LimitLogins" = "yes" ]; then
-    echo "${USER}        -       maxlogins       2" >> /etc/security/limits.conf
-    echo "[!] ${USER} maxlogins = 2"
 fi
