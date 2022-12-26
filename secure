@@ -16,6 +16,18 @@ if [ "$BT" = "y" ] || [ "$BT" = "yes" ]; then
 fi
 
 
+read -p "cgroup? [y]" CGROUP
+CGROUP=${CGROUP:-y}
+if [ "$CGROUP" = "y" ] || [ "$CGROUP" = "yes" ]; then
+    echo 'cgroup_memory=1' >> /boot/config.txt
+    echo 'cgroup_enable=memory' >> /boot/config.txt
+    echo "[!] Bluetooth Disabled"
+fi
+
+# $ sudo PRUNE_MODULES=1 RPI_REBOOT=1 SKIP_WARNING=1 rpi-update
+ 
+
+
 ##########################################
 # UFW
 ##########################################
