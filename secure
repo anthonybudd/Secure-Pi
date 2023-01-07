@@ -11,7 +11,7 @@ fi
 read -p "Disable Bluetooth? [y]" BT
 BT=${BT:-y}
 if [ "$BT" = "y" ] || [ "$BT" = "yes" ]; then
-    sed -i '/\/boot\/overlays\/README/a \dtoverlay=disable-bt' /boot/config.txt
+    sed -i '/\/boot\/overlays\/README/a \dtoverlay=disable-bt' /boot/cmdline.txt
     echo "[!] Bluetooth Disabled"
 fi
 
@@ -19,12 +19,9 @@ fi
 read -p "cgroup? [y]" CGROUP
 CGROUP=${CGROUP:-y}
 if [ "$CGROUP" = "y" ] || [ "$CGROUP" = "yes" ]; then
-    echo 'cgroup_memory=1' >> /boot/config.txt
-    echo 'cgroup_enable=memory' >> /boot/config.txt
-    echo "[!] Bluetooth Disabled"
+    sed -i '$s/$/ cgroup_memory=1 cgroup_enable=memory /' /boot/cmdline.txt
+    echo "[!] cgroup enabled"
 fi
-
-# $ sudo PRUNE_MODULES=1 RPI_REBOOT=1 SKIP_WARNING=1 rpi-update
  
 
 
