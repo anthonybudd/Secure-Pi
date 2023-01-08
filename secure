@@ -4,14 +4,14 @@
 read -p "Disable Wifi? [y]" WIFI
 WIFI=${WIFI:-y}
 if [ "$WIFI" = "y" ] || [ "$WIFI" = "yes" ]; then
-    sed -i '/\/boot\/overlays\/README/a \dtoverlay=disable-wifi' /boot/config.txt
+    echo 'dtoverlay=disable-wifi' >> /boot/config.txt
     echo "[!] Wifi Disabled"
 fi
 
 read -p "Disable Bluetooth? [y]" BT
 BT=${BT:-y}
 if [ "$BT" = "y" ] || [ "$BT" = "yes" ]; then
-    sed -i '/\/boot\/overlays\/README/a \dtoverlay=disable-bt' /boot/cmdline.txt
+    echo 'dtoverlay=disable-bt' >> /boot/config.txt
     echo "[!] Bluetooth Disabled"
 fi
 
